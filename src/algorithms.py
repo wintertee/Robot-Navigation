@@ -22,19 +22,16 @@ class Baseline(BaseAlgo):
         self.dt = dt
         self.time_length = int(1 / dt)
 
-    # def get_obst_dist(self, x, y):
-    #     return np.min(np.linalg.norm(np.array([x, y]) - self.grid_map.obst_coor, axis=1))
-
     def _check_traj_obst(self, x_array, y_array):
         assert x_array.size == y_array.size
 
         # obstacles in trajectory
-        for i in range(x_array.size):
-            try:
+        try:
+            for i in range(x_array.size):
                 if self.grid_map.data[int(y_array[i]), int(x_array[i])] >= self.height_threshold:
                     return False
-            except IndexError:
-                return False
+        except IndexError:
+            return False
 
         # robot cannot stop before it reaches to nearest obstacle
         # if
@@ -57,24 +54,39 @@ class Baseline(BaseAlgo):
         return v_space, omega_space
 
     def _gen_dynamic_trajectory(self, v_array, omega_array):
-        trajectories_x = np.empty((self.num_v, self.num_omega, self.time_length))
-        trajectories_y = np.empty((self.num_v, self.num_omega, self.time_length))
+        trajectories_x = [[np.empty(0)] * self.num_omega for i in range(self.num_v)]  # shape = (num_v, num_omega)
+        trajectories_y = [[np.empty(0)] * self.num_omega for i in range(self.num_v)]
         faisible_idx = np.ones((self.num_v, self.num_omega), dtype='bool')
         for i in range(self.num_v):
             for j in range(self.num_omega):
                 trajectories_x[i][j], trajectories_y[i][j] = self.grid_map.gen_trajectory_points(
-                    self.robot.x, self.robot.y, self.robot.theta, v_array[i], omega_array[j], self.dt, 1)
+                    self.robot.x, self.robot.y, self.robot.theta, v_array[i], omega_array[j], self.dt,
+                    1 + v_array[i] / self.robot.max_dv)
                 faisible_idx[i][j] = self._check_traj_obst(trajectories_x[i][j], trajectories_y[i][j])
         return trajectories_x, trajectories_y, faisible_idx
 
-    def __call__(self):
+    def __call__(self, show_faisible: bool = True, show_non_faisible: bool = False):
         v_array, omega_array = self._gen_dynamic_space()
         trajectories_x, trajectories_y, faisible_idx = self._gen_dynamic_trajectory(v_array, omega_array)
         for i in range(self.num_v):
             for j in range(self.num_omega):
-                # self.grid_map.draw_trajectory_old(self.robot.x, self.robot.y, self.robot.theta,
-                #                                   v_array[i], omega_array[j])
                 if faisible_idx[i][j]:
-                    self.grid_map.draw_trajectory(trajectories_x[i][j], trajectories_y[i][j], 'g--', linewidth=0.25)
+                    if show_faisible:
+                        self.grid_map.draw_trajectory(trajectories_x[i][j][:self.time_length],
+                                                      trajectories_y[i][j][:self.time_length],
+                                                      'g-',
+                                                      linewidth=0.5)
+                        self.grid_map.draw_trajectory(trajectories_x[i][j][self.time_length - 1:],
+                                                      trajectories_y[i][j][self.time_length - 1:],
+                                                      'g:',
+                                                      linewidth=0.25)
                 else:
-                    self.grid_map.draw_trajectory(trajectories_x[i][j], trajectories_y[i][j], 'r--', linewidth=0.25)
+                    if show_non_faisible:
+                        self.grid_map.draw_trajectory(trajectories_x[i][j][:self.time_length],
+                                                      trajectories_y[i][j][:self.time_length],
+                                                      'r-',
+                                                      linewidth=0.5)
+                        self.grid_map.draw_trajectory(trajectories_x[i][j][self.time_length - 1:],
+                                                      trajectories_y[i][j][self.time_length - 1:],
+                                                      'r:',
+                                                      linewidth=0.25)

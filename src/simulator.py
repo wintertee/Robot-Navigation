@@ -25,9 +25,10 @@ class GridMap:
         self.data = np.zeros((grid_size, grid_size))
 
         self.fig, self.ax = plt.subplots()
+        self.fig.set_size_inches(6, 6)
         self.ax.set_xticks(np.arange(0, self.grid_size + 1))
         self.ax.set_yticks(np.arange(0, self.grid_size + 1))
-        self.ax.grid(which='major', axis='both', linestyle='--', color='k', linewidth=0.5)
+        self.ax.grid(which='major', axis='both', linestyle='--', color='k', linewidth=0.25)
 
     def gen_map_bool(self, block_rate=0.1, seed=None):
         if seed is not None:
@@ -74,7 +75,7 @@ class GridMap:
     def save(self):
         self.ax.set_xlim(0, self.grid_size)
         self.ax.set_ylim(0, self.grid_size)
-        plt.savefig('fig.png')
+        plt.savefig('fig.png', dpi=300)
 
 
 class Simulator:

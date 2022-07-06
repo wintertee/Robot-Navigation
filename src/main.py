@@ -17,8 +17,8 @@ if __name__ == '__main__':
 
     algo = Baseline(robot=simulator.robot,
                     grid_map=simulator.grid_map,
-                    num_v=9,
-                    num_omega=9,
+                    num_v=15,
+                    num_omega=15,
                     height_threshold=1 - block_rate,
                     dt=0.1)
     algo()
