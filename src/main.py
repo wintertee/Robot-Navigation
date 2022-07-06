@@ -20,7 +20,7 @@ if __name__ == '__main__':
                     num_v=9,
                     num_omega=9,
                     height_threshold=1 - block_rate,
-                    dt=0.01)
+                    dt=0.1)
     algo()
 
     simulator.grid_map.save()

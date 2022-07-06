@@ -20,7 +20,7 @@ class Baseline(BaseAlgo):
         self.num_omega = num_omega
         self.height_threshold = height_threshold
         self.dt = dt
-        self.time_length = int(1 / dt + 1)
+        self.time_length = int(1 / dt)
 
     # def get_obst_dist(self, x, y):
     #     return np.min(np.linalg.norm(np.array([x, y]) - self.grid_map.obst_coor, axis=1))
@@ -30,7 +30,10 @@ class Baseline(BaseAlgo):
 
         # obstacles in trajectory
         for i in range(x_array.size):
-            if self.grid_map.data[int(y_array[i]), int(x_array[i])] >= self.height_threshold:
+            try:
+                if self.grid_map.data[int(y_array[i]), int(x_array[i])] >= self.height_threshold:
+                    return False
+            except IndexError:
                 return False
 
         # robot cannot stop before it reaches to nearest obstacle
@@ -38,6 +41,7 @@ class Baseline(BaseAlgo):
         return True
 
     def _gen_dynamic_space(self):
+
         min_v = max(self.robot.v - self.robot.max_dv, 1)
         max_v = min(self.robot.v + self.robot.max_dv, self.robot.max_v)
 
@@ -59,7 +63,7 @@ class Baseline(BaseAlgo):
         for i in range(self.num_v):
             for j in range(self.num_omega):
                 trajectories_x[i][j], trajectories_y[i][j] = self.grid_map.gen_trajectory_points(
-                    self.robot.x, self.robot.y, self.robot.theta, v_array[i], omega_array[j], self.dt)
+                    self.robot.x, self.robot.y, self.robot.theta, v_array[i], omega_array[j], self.dt, 1)
                 faisible_idx[i][j] = self._check_traj_obst(trajectories_x[i][j], trajectories_y[i][j])
         return trajectories_x, trajectories_y, faisible_idx
 
