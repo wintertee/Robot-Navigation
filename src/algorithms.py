@@ -65,59 +65,58 @@ class Baseline(BaseAlgo):
 
         return v_space, omega_space
 
-    def _gen_dynamic_trajectory(self, v_array, omega_array):
-        trajectories = [
+    def _gen_dynamic_traj(self, v_array, omega_array):
+        traj_array = [
             [Trajectory() for j in range(self.num_omega)] for i in range(self.num_v)
         ]  # shape = (num_v, num_omega)
         for i in range(self.num_v):
             for j in range(self.num_omega):
-                trajectories[i][j].init(
+                traj_array[i][j].init(
                     robot=self.robot,
                     v=v_array[i],
                     omega=omega_array[j],
                     dt=self.dt,
                     t=1 + v_array[i] / self.robot.max_dv,  # prediction until robot stop moving
                 )
-                trajectories[i][j].gen_trajectory_points()
-                faisible = self._check_traj_obst(trajectories[i][j].x_array, trajectories[i][j].y_array)
+                traj_array[i][j].gen_traj_points()
+                faisible = self._check_traj_obst(traj_array[i][j].x_array, traj_array[i][j].y_array)
 
-                trajectories[i][j].set_faisible(faisible)
-        return trajectories
+                traj_array[i][j].set_faisible(faisible)
+        return traj_array
 
     def __call__(self, show_faisible: bool = True, show_non_faisible: bool = False):
         v_array, omega_array = self._gen_dynamic_space()
-        trajectories = self._gen_dynamic_trajectory(v_array, omega_array)
-        for i in range(self.num_v):
-            for j in range(self.num_omega):
-                if trajectories[i][j].faisible:
-                    if show_faisible:
-                        self.grid_map.draw_trajectory(
-                            trajectories[i][j],
-                            None,
-                            trajectories[i][j].unit_time_length,
-                            "g-",
-                            linewidth=0.5,
-                        )
-                        self.grid_map.draw_trajectory(
-                            trajectories[i][j],
-                            trajectories[i][j].unit_time_length - 1,
-                            None,
-                            "g:",
-                            linewidth=0.25,
-                        )
-                else:
-                    if show_non_faisible:
-                        self.grid_map.draw_trajectory(
-                            trajectories[i][j],
-                            None,
-                            trajectories[i][j].unit_time_length,
-                            "r-",
-                            linewidth=0.5,
-                        )
-                        self.grid_map.draw_trajectory(
-                            trajectories[i][j],
-                            trajectories[i][j].unit_time_length - 1,
-                            None,
-                            "r:",
-                            linewidth=0.25,
-                        )
+        traj_array = np.array(self._gen_dynamic_traj(v_array, omega_array)).flatten()
+        for traj in traj_array:
+            if traj.faisible:
+                if show_faisible:
+                    self.grid_map.draw_traj(
+                        traj,
+                        None,
+                        traj.unit_time_length,
+                        "g-",
+                        linewidth=0.5,
+                    )
+                    self.grid_map.draw_traj(
+                        traj,
+                        traj.unit_time_length - 1,
+                        None,
+                        "g:",
+                        linewidth=0.25,
+                    )
+            else:
+                if show_non_faisible:
+                    self.grid_map.draw_traj(
+                        traj,
+                        None,
+                        traj.unit_time_length,
+                        "r-",
+                        linewidth=0.5,
+                    )
+                    self.grid_map.draw_traj(
+                        traj,
+                        traj.unit_time_length - 1,
+                        None,
+                        "r:",
+                        linewidth=0.25,
+                    )

@@ -41,7 +41,7 @@ class Trajectory:
         self.unit_time_length = int(1 / dt)
         self.t = t
 
-    def gen_trajectory_points(self):
+    def gen_traj_points(self):
         self.t_array = np.arange(0, self.t, self.dt)
         if self.omega == 0:
             self.x_array = self.robot.x + self.v * self.t_array * np.cos(self.robot.theta)
@@ -96,8 +96,8 @@ class GridMap:
             extent=[0, self.grid_size, 0, self.grid_size],
         )
 
-    def draw_trajectory(self, trajectory: Trajectory, indice1: Optional[int], indice2: Optional[int], *args, **kwargs):
-        self.ax.plot(trajectory.x_array[indice1:indice2], trajectory.y_array[indice1:indice2], *args, **kwargs)
+    def draw_traj(self, traj: Trajectory, indice1: Optional[int], indice2: Optional[int], *args, **kwargs):
+        self.ax.plot(traj.x_array[indice1:indice2], traj.y_array[indice1:indice2], *args, **kwargs)
 
     def show(self):
         # self.ax.set_xlim(0, self.grid_size)
