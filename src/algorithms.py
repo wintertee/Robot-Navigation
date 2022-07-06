@@ -1,4 +1,4 @@
-from simulator import GridMap, Robot
+from simulator import GridMap, Robot, Trajectory
 import numpy as np
 import logging
 
@@ -10,7 +10,15 @@ class BaseAlgo:
 
 
 class Baseline(BaseAlgo):
-    def __init__(self, robot: Robot, grid_map: GridMap, num_v: int, num_omega: int, height_threshold: float, dt: float):
+    def __init__(
+        self,
+        robot: Robot,
+        grid_map: GridMap,
+        num_v: int,
+        num_omega: int,
+        height_threshold: float,
+        dt: float,
+    ):
         super().__init__()
         self.robot = robot
         self.grid_map = grid_map
@@ -20,7 +28,6 @@ class Baseline(BaseAlgo):
         self.num_omega = num_omega
         self.height_threshold = height_threshold
         self.dt = dt
-        self.time_length = int(1 / dt)
 
     def _check_traj_obst(self, x_array, y_array):
         assert x_array.size == y_array.size
@@ -31,10 +38,9 @@ class Baseline(BaseAlgo):
                 if self.grid_map.data[int(y_array[i]), int(x_array[i])] >= self.height_threshold:
                     return False
         except IndexError:
+            # robot will move out of map
             return False
 
-        # robot cannot stop before it reaches to nearest obstacle
-        # if
         return True
 
     def _gen_dynamic_space(self):
@@ -47,46 +53,71 @@ class Baseline(BaseAlgo):
 
         self.logger.warning("min_v:{}, max_v:{}, min_omega:{}, max_omega:{}".format(min_v, max_v, min_omega, max_omega))
 
-        v_space = np.linspace(min_v, max_v, self.num_v) if self.num_v != 1 else np.array(self.robot.v).reshape((1, ))
-        omega_space = np.linspace(min_omega, max_omega, self.num_omega) if self.num_omega != 1 else np.array(
-            self.robot.omega).reshape((1, ))
+        v_space = np.linspace(min_v, max_v, self.num_v) if self.num_v != 1 else np.array(self.robot.v).reshape((1,))
+        omega_space = (
+            np.linspace(min_omega, max_omega, self.num_omega)
+            if self.num_omega != 1
+            else np.array(self.robot.omega).reshape((1,))
+        )
+
+        self.logger.warning(v_space)
+        self.logger.warning(omega_space)
 
         return v_space, omega_space
 
     def _gen_dynamic_trajectory(self, v_array, omega_array):
-        trajectories_x = [[np.empty(0)] * self.num_omega for i in range(self.num_v)]  # shape = (num_v, num_omega)
-        trajectories_y = [[np.empty(0)] * self.num_omega for i in range(self.num_v)]
-        faisible_idx = np.ones((self.num_v, self.num_omega), dtype='bool')
+        trajectories = [
+            [Trajectory() for j in range(self.num_omega)] for i in range(self.num_v)
+        ]  # shape = (num_v, num_omega)
         for i in range(self.num_v):
             for j in range(self.num_omega):
-                trajectories_x[i][j], trajectories_y[i][j] = self.grid_map.gen_trajectory_points(
-                    self.robot.x, self.robot.y, self.robot.theta, v_array[i], omega_array[j], self.dt,
-                    1 + v_array[i] / self.robot.max_dv)
-                faisible_idx[i][j] = self._check_traj_obst(trajectories_x[i][j], trajectories_y[i][j])
-        return trajectories_x, trajectories_y, faisible_idx
+                trajectories[i][j].init(
+                    robot=self.robot,
+                    v=v_array[i],
+                    omega=omega_array[j],
+                    dt=self.dt,
+                    t=1 + v_array[i] / self.robot.max_dv,  # prediction until robot stop moving
+                )
+                trajectories[i][j].gen_trajectory_points()
+                faisible = self._check_traj_obst(trajectories[i][j].x_array, trajectories[i][j].y_array)
+
+                trajectories[i][j].set_faisible(faisible)
+        return trajectories
 
     def __call__(self, show_faisible: bool = True, show_non_faisible: bool = False):
         v_array, omega_array = self._gen_dynamic_space()
-        trajectories_x, trajectories_y, faisible_idx = self._gen_dynamic_trajectory(v_array, omega_array)
+        trajectories = self._gen_dynamic_trajectory(v_array, omega_array)
         for i in range(self.num_v):
             for j in range(self.num_omega):
-                if faisible_idx[i][j]:
+                if trajectories[i][j].faisible:
                     if show_faisible:
-                        self.grid_map.draw_trajectory(trajectories_x[i][j][:self.time_length],
-                                                      trajectories_y[i][j][:self.time_length],
-                                                      'g-',
-                                                      linewidth=0.5)
-                        self.grid_map.draw_trajectory(trajectories_x[i][j][self.time_length - 1:],
-                                                      trajectories_y[i][j][self.time_length - 1:],
-                                                      'g:',
-                                                      linewidth=0.25)
+                        self.grid_map.draw_trajectory(
+                            trajectories[i][j],
+                            None,
+                            trajectories[i][j].unit_time_length,
+                            "g-",
+                            linewidth=0.5,
+                        )
+                        self.grid_map.draw_trajectory(
+                            trajectories[i][j],
+                            trajectories[i][j].unit_time_length - 1,
+                            None,
+                            "g:",
+                            linewidth=0.25,
+                        )
                 else:
                     if show_non_faisible:
-                        self.grid_map.draw_trajectory(trajectories_x[i][j][:self.time_length],
-                                                      trajectories_y[i][j][:self.time_length],
-                                                      'r-',
-                                                      linewidth=0.5)
-                        self.grid_map.draw_trajectory(trajectories_x[i][j][self.time_length - 1:],
-                                                      trajectories_y[i][j][self.time_length - 1:],
-                                                      'r:',
-                                                      linewidth=0.25)
+                        self.grid_map.draw_trajectory(
+                            trajectories[i][j],
+                            None,
+                            trajectories[i][j].unit_time_length,
+                            "r-",
+                            linewidth=0.5,
+                        )
+                        self.grid_map.draw_trajectory(
+                            trajectories[i][j],
+                            trajectories[i][j].unit_time_length - 1,
+                            None,
+                            "r:",
+                            linewidth=0.25,
+                        )
