@@ -41,6 +41,8 @@ class Trajectory:
         self.unit_time_length = int(1 / dt)
         self.t = t
 
+        self.eval = 0
+
     def gen_traj_points(self):
         self.t_array = np.arange(0, self.t, self.dt)
         if self.omega == 0:

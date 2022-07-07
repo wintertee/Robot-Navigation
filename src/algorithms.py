@@ -1,5 +1,6 @@
 from simulator import GridMap, Robot, Trajectory
 import numpy as np
+from matplotlib import cm
 import logging
 
 
@@ -14,6 +15,7 @@ class Baseline(BaseAlgo):
         self,
         robot: Robot,
         grid_map: GridMap,
+        dest: tuple,
         num_v: int,
         num_omega: int,
         height_threshold: float,
@@ -22,6 +24,7 @@ class Baseline(BaseAlgo):
         super().__init__()
         self.robot = robot
         self.grid_map = grid_map
+        self.dest = dest
         assert num_v % 2 == 1
         assert num_omega % 2 == 1
         self.num_v = num_v
@@ -71,12 +74,15 @@ class Baseline(BaseAlgo):
         ]  # shape = (num_v, num_omega)
         for i in range(self.num_v):
             for j in range(self.num_omega):
+                time = 1 + max(
+                    v_array[i] / self.robot.max_dv, omega_array[j] / self.robot.max_domega
+                )  # prediction until robot stop moving
                 traj_array[i][j].init(
                     robot=self.robot,
                     v=v_array[i],
                     omega=omega_array[j],
                     dt=self.dt,
-                    t=1 + v_array[i] / self.robot.max_dv,  # prediction until robot stop moving
+                    t=time,
                 )
                 traj_array[i][j].gen_traj_points()
                 faisible = self._check_traj_obst(traj_array[i][j].x_array, traj_array[i][j].y_array)
@@ -84,39 +90,55 @@ class Baseline(BaseAlgo):
                 traj_array[i][j].set_faisible(faisible)
         return traj_array
 
+    def eval(self, traj: Trajectory, dest: tuple[float, float]) -> None:
+        if traj.faisible is False:
+            traj.eval = 0
+            return
+        dist = np.linalg.norm(np.array([traj.x_array[-1], traj.y_array[-1]]) - np.array(dest))
+        traj.eval = 1 - dist / 10 / np.sqrt(2)
+
+    def visulize(self, traj: Trajectory, show_non_faisible=False, cmap=cm.get_cmap("winter")):
+        if traj.faisible:
+            self.grid_map.draw_traj(
+                traj,
+                None,
+                traj.unit_time_length,
+                color=cmap(traj.eval),
+                # c="g",
+                linestyle="-",
+                linewidth=0.5,
+            )
+            self.grid_map.draw_traj(
+                traj,
+                traj.unit_time_length - 1,
+                None,
+                color=cmap(traj.eval),
+                # c="g",
+                linestyle=":",
+                linewidth=0.25,
+            )
+        elif show_non_faisible:
+            self.grid_map.draw_traj(
+                traj,
+                None,
+                traj.unit_time_length,
+                color="red",
+                linestyle="-",
+                linewidth=0.5,
+            )
+            self.grid_map.draw_traj(
+                traj,
+                traj.unit_time_length - 1,
+                None,
+                color="red",
+                linestyle=":",
+                linewidth=0.25,
+            )
+
     def __call__(self, show_faisible: bool = True, show_non_faisible: bool = False):
         v_array, omega_array = self._gen_dynamic_space()
         traj_array = np.array(self._gen_dynamic_traj(v_array, omega_array)).flatten()
         for traj in traj_array:
-            if traj.faisible:
-                if show_faisible:
-                    self.grid_map.draw_traj(
-                        traj,
-                        None,
-                        traj.unit_time_length,
-                        "g-",
-                        linewidth=0.5,
-                    )
-                    self.grid_map.draw_traj(
-                        traj,
-                        traj.unit_time_length - 1,
-                        None,
-                        "g:",
-                        linewidth=0.25,
-                    )
-            else:
-                if show_non_faisible:
-                    self.grid_map.draw_traj(
-                        traj,
-                        None,
-                        traj.unit_time_length,
-                        "r-",
-                        linewidth=0.5,
-                    )
-                    self.grid_map.draw_traj(
-                        traj,
-                        traj.unit_time_length - 1,
-                        None,
-                        "r:",
-                        linewidth=0.25,
-                    )
+            self.eval(traj, self.dest)
+            if show_faisible:
+                self.visulize(traj, show_non_faisible)
