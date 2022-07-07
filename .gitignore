@@ -1,5 +1,5 @@
 .vscode/
-fig.png
+fig/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

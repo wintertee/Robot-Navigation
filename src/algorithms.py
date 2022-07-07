@@ -95,15 +95,23 @@ class Baseline(BaseAlgo):
             traj.eval = 0
             return
         dist = np.linalg.norm(np.array([traj.x_array[-1], traj.y_array[-1]]) - np.array(dest))
-        traj.eval = 1 - dist / 10 / np.sqrt(2)
+        dist = 1 - dist / 10 / np.sqrt(2)
 
-    def visulize(self, traj: Trajectory, show_non_faisible=False, cmap=cm.get_cmap("winter")):
+        velocity = traj.v / traj.robot.max_v
+
+        traj.eval = 0.8 * dist + 0.2 * velocity
+
+    def visulize(self, traj: Trajectory, is_best, show_non_faisible=False, cmap=cm.get_cmap("winter")):
         if traj.faisible:
+            if is_best:
+                color = "y"
+            else:
+                color = cmap(traj.eval)
             self.grid_map.draw_traj(
                 traj,
                 None,
                 traj.unit_time_length,
-                color=cmap(traj.eval),
+                color=color,
                 # c="g",
                 linestyle="-",
                 linewidth=0.5,
@@ -112,7 +120,7 @@ class Baseline(BaseAlgo):
                 traj,
                 traj.unit_time_length - 1,
                 None,
-                color=cmap(traj.eval),
+                color=color,
                 # c="g",
                 linestyle=":",
                 linewidth=0.25,
@@ -140,5 +148,8 @@ class Baseline(BaseAlgo):
         traj_array = np.array(self._gen_dynamic_traj(v_array, omega_array)).flatten()
         for traj in traj_array:
             self.eval(traj, self.dest)
+        eval_ranks = np.array([traj.eval for traj in traj_array])
+        best_index = np.argmax(eval_ranks)
+        for idx, traj in enumerate(traj_array):
             if show_faisible:
-                self.visulize(traj, show_non_faisible)
+                self.visulize(traj, idx == best_index, show_non_faisible)

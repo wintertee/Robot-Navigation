@@ -109,7 +109,7 @@ class GridMap:
     def save(self):
         self.ax.set_xlim(0, self.grid_size)
         self.ax.set_ylim(0, self.grid_size)
-        plt.savefig("fig.png", dpi=300)
+        plt.savefig("fig/fig.png", dpi=300)
 
 
 class Simulator:
